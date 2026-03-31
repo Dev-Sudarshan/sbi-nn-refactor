@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional , Literal , Union
+import torch
 from torch.distributions import Distribution
 import nflows.transforms as nflows_tf
 import zuko.flows as zuko_flows
@@ -139,3 +140,40 @@ class MixedZScoreContext(ZScoreContext):
 
     embedding_net_discrete: Optional[nn.Module] = None
     embedding_net_continuous: Optional[nn.Module] = None
+
+@dataclass
+class BuildContext:
+    """Context passed to ``EstimatorBuilder.build()``.
+
+    Contains everything a builder needs: shape information for dimensionality
+    inference, the pre-resolved z-score context, device/dtype targeting, and
+    the original sample batches used by the underlying ``build_*`` functions
+    for internal normalization statistics.
+
+    Attributes:
+        x_shape: Shape of a single observation tensor (excluding batch dim).
+        theta_shape: Shape of a single parameter tensor (excluding batch dim).
+        z_score_context: Pre-resolved z-score artefacts (normalisations and
+            embedding networks) produced from a ``ZScoreConfig``.
+        device: Target device for all constructed modules and tensors.
+        dtype: Target floating-point dtype for normalisation statistics.
+        batch_x: Representative batch of observations used by ``build_*``
+            functions to compute internal normalisation statistics.
+        batch_y: Representative batch of parameters (conditioning variable)
+            used alongside ``batch_x``.
+    """
+
+    # Dimensionality / shape
+    x_shape: torch.Size
+    theta_shape: torch.Size
+
+    # Resolved z-score artefacts
+    z_score_context: ZScoreContext
+
+    # Device / dtype targeting
+    device: torch.device
+    dtype: torch.dtype
+
+    #  Representative sample batches
+    batch_x: Tensor
+    batch_y: Tensor
