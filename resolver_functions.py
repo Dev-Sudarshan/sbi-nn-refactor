@@ -253,3 +253,44 @@ def z_score_resolver_mixed_density_estimator(
 
     else:
         raise ValueError(f"Unsupported flow_model: {flow_model}")
+    
+
+def resolve_z_transform(self, batch_x, batch_y, z_score_config):
+    """Dispatch z-score resolution to the resolver matching the model backend.
+
+    Selects the appropriate resolver based on ``self.model``:
+
+    * ``"mdn"``                   → ``resolve_mdn_transform_input``
+    * ``"maf"``, ``"nsf"``, ``"maf_rqs"``, ``"made"`` → ``resolve_nflows_input_transform``
+    * ``"zuko_*"``                → ``resolve_zuko_x_transforms``
+    * ``"mnle"``, ``"mnpe"``      → ``z_score_resolver_mixed_density_estimator``
+
+    Args:
+        batch_x: Sample batch of observations used for x-normalisation
+            statistics and discrete/continuous column detection.
+        batch_y: Sample batch of parameters used for y-embedding statistics.
+        z_score_config: Z-scoring intent for both x and theta.
+
+    Returns:
+        A resolved ``ZScoreContext`` (or ``MixedZScoreContext`` for mixed
+        models) with pre-computed transforms and/or embedding nets.
+    """
+    if self.model == "mdn":
+        return resolve_mdn_transform_input(batch_x, batch_y, z_score_config)
+
+    elif self.model in ("maf", "nsf", "maf_rqs", "made"):
+        return resolve_nflows_input_transform(batch_x, batch_y, z_score_config)
+
+    elif self.model.startswith("zuko_"):
+        return resolve_zuko_x_transforms(batch_x, batch_y, z_score_config)
+
+    elif self.model in ("mnle", "mnpe"):
+        num_disc = (
+            len(self.config.num_categories_per_variable)
+            if self.config.num_categories_per_variable is not None
+            else int(torch.sum(_is_discrete(batch_x)))
+        )
+        cont_x, _ = _separate_input(batch_x, num_discrete_columns=num_disc)
+        return z_score_resolver_mixed_density_estimator(
+            cont_x, batch_y, z_score_config, flow_model=self.config.flow_model
+        )
