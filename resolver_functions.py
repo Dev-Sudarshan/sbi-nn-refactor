@@ -286,11 +286,13 @@ def resolve_z_transform(self, batch_x, batch_y, z_score_config):
 
     elif self.model in ("mnle", "mnpe"):
         num_disc = (
-            len(self.config.num_categories_per_variable)
-            if self.config.num_categories_per_variable is not None
+            len(self._config.num_categories_per_variable)
+            if self._config.num_categories_per_variable is not None
             else int(torch.sum(_is_discrete(batch_x)))
         )
         cont_x, _ = _separate_input(batch_x, num_discrete_columns=num_disc)
         return z_score_resolver_mixed_density_estimator(
-            cont_x, batch_y, z_score_config, flow_model=self.config.flow_model
+            cont_x, batch_y, z_score_config, flow_model=self._config.flow_model
         )
+    else:
+        raise ValueError(f"Unsupported model: {self.model}")
